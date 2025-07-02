@@ -1,0 +1,23 @@
+<!-- views/result.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Love Result</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div style="text-align: center; padding: 50px;">
+    <h1>💖 Result 💖</h1>
+    <h2><%= boy %> ❤️ <%= girl %></h2>
+    <h3>Your Love Match is: <span style="color: #e91e63;"><%= percentage %>%</span></h3>
+
+    <br><br>
+    <a href="/" class="btn">🔁 Try Again</a>
+  </div>
+
+  <!-- External JS -->
+  <script src="/script.js" charset="UTF-8"></script>
+</body>
+</html>
