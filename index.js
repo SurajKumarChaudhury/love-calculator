@@ -2,33 +2,41 @@ import express from "express";
 import bodyParser from "body-parser";
 import path from "path";
 import { fileURLToPath } from "url";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import pkg from "pg"; // PostgreSQL client
+const { Pool } = pkg;
 
 const app = express();
-const PORT = process.env.PORT || 3000; // ✅ Use Render-compatible port
+const PORT = process.env.PORT || 3000;
 
 // Path setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// SQLite Database Setup
-let db;
-const initDB = async () => {
-  db = await open({
-    filename: path.join(__dirname, "loveCalculator.db"),
-    driver: sqlite3.Database,
-  });
+// PostgreSQL Setup
+const pool = new Pool({
+  user: process.env.PGUSER,
+  host: process.env.PGHOST,
+  database: process.env.PGDATABASE,
+  password: process.env.PGPASSWORD,
+  port: process.env.PGPORT,
+  ssl: { rejectUnauthorized: false }, // ✅ Needed for Render PostgreSQL
+});
 
-  await db.run(`
-    CREATE TABLE IF NOT EXISTS loveresults (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      boy TEXT NOT NULL,
-      girl TEXT NOT NULL,
-      percentage INTEGER NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+const initDB = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS loveresults (
+        id SERIAL PRIMARY KEY,
+        boy TEXT NOT NULL,
+        girl TEXT NOT NULL,
+        percentage INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("✅ Connected to PostgreSQL and table is ready");
+  } catch (err) {
+    console.error("❌ Failed to connect or create table:", err.message);
+  }
 };
 
 // EJS Setup
@@ -37,7 +45,7 @@ app.set("views", path.join(__dirname, "views"));
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "frontend"))); // ✅ Serve static files
+app.use(express.static(path.join(__dirname, "frontend")));
 
 // Routes
 app.get("/", (req, res) => {
@@ -50,14 +58,14 @@ app.post("/result", async (req, res) => {
   const lovePercentage = Math.floor(Math.random() * 101);
 
   try {
-    await db.run(
-      "INSERT INTO loveresults (boy, girl, percentage) VALUES (?, ?, ?)",
+    await pool.query(
+      "INSERT INTO loveresults (boy, girl, percentage) VALUES ($1, $2, $3)",
       [boy, girl, lovePercentage]
     );
 
     res.render("result", {
-      boy: boy,
-      girl: girl,
+      boy,
+      girl,
       percentage: lovePercentage,
     });
   } catch (error) {
@@ -66,9 +74,9 @@ app.post("/result", async (req, res) => {
   }
 });
 
-// Start server only after DB is initialized
+// Start server after DB is ready
 const startServer = async () => {
-  await initDB(); // ✅ Initialize DB before listening
+  await initDB();
   app.listen(PORT, () => {
     console.log(`✅ Server running at http://localhost:${PORT}`);
   });
